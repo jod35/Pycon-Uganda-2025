@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PyCon Talk Comments</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-gray-100 min-h-screen flex items-center justify-center font-sans">
+  <div class="w-[70%] p-8 bg-white rounded-2xl shadow-xl">
+    <h1 class="text-4xl font-bold text-gray-900 mb-3 tracking-tight">PyCon Talk Q&A</h1>
+    <p class="text-gray-700 mb-6 text-lg">Client: <b><span id="client-id" class="text-blue-700 font-semibold"></span></b></p>
+    <div class="h-96 overflow-y-auto mb-6 p-6 bg-gray-100 rounded-xl border border-gray-200 shadow-sm" id="clientComments">
+      <!-- Empty state -->
+      <p class="text-gray-500 text-center italic text-lg">No comments yet. Ask a question to get started!</p>
+    </div>
+    <div class="flex gap-4">
+      <form action="" class="flex w-full gap-4">
+        <input
+          type="text"
+          placeholder="Ask your question..."
+          name="message"
+          class="flex-1 p-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all duration-300 bg-white text-gray-900 placeholder-gray-400 text-lg"
+        />
+        <button
+          type="submit"
+          class="px-8 py-4 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-all duration-300 font-semibold text-lg"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  </div>
+  <script>
+    const ws = new WebSocket("ws://localhost:8000/ws");
+    const form = document.querySelector('form');
+    const messagesDiv = document.getElementById('clientComments');
+    const clientIdSpan = document.getElementById('client-id');
+
+    // Create a unique identifier for each client
+    const makeid = (length) => {
+      let result = '';
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const charactersLength = characters.length;
+      let counter = 0;
+      while (counter < length) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+        counter += 1;
+      }
+      return result;
+    };
+
+    const clientIdentifier = makeid(6);
+    clientIdSpan.innerText = clientIdentifier;
+
+    ws.onopen = () => {
+      console.log('Connected to WebSocket Server');
+      ws.send(JSON.stringify({
+        content: `${clientIdentifier} joined`,
+        client: clientIdentifier,
+        timestamp: new Date().getTime()
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log(data);
+
+      // Format timestamp
+      const date = new Date(data.timestamp);
+      const timeString = date.toLocaleTimeString();
+
+      let newMessage = `
+        <div class="mb-4 p-4 bg-blue-50 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md">
+          <p class="text-sm text-gray-600 font-medium">${data.client} <small class="text-gray-500">${timeString}</small></p>
+          <p class="text-gray-800 mt-2 text-base">${data.message}</p>
+        </div>
+      `;
+      messagesDiv.innerHTML += newMessage;
+
+      // Remove empty state message if present
+      const emptyState = messagesDiv.querySelector('.text-gray-500');
+      if (emptyState) emptyState.remove();
+
+      // Add horizontal rule between messages
+      const hr = document.createElement('hr');
+      hr.className = 'my-3 border-gray-300';
+      messagesDiv.appendChild(hr);
+
+      // Auto-scroll to the bottom of the comments section
+      messagesDiv.scrollTo({
+        top: messagesDiv.scrollHeight,
+        behavior: 'smooth'
+      });
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket Error:', error);
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    form.addEventListener('submit', async (event) => {
+      const formData = new FormData(form);
+      const message = formData.get('message');
+      if (message.trim() === '') return; // Prevent empty submissions
+      ws.send(JSON.stringify({
+        content: message,
+        client: clientIdentifier,
+        timestamp: new Date().getTime()
+      }));
+      form.reset();
+      event.preventDefault();
+    });
+  </script>
+</body>
+</html>
