@@ -33,7 +33,7 @@
   </div>
   <script>
     const BASE_URL = "presentation-ik8v.onrender.com";
-    const ws = new WebSocket(`ws://${BASE_URL}/ws`);
+    const ws = new WebSocket(`wss://${BASE_URL}/ws`);
     const form = document.querySelector('form');
     const messagesDiv = document.getElementById('clientComments');
     const clientIdSpan = document.getElementById('client-id');
