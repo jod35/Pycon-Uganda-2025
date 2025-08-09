@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PyCon Talk Presenter Comments</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #60a5fa;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #3b82f6;
+        }
+        /* Fade-in animation for comments */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .comment {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-4xl p-8 bg-white rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6 flex items-center">
+            <svg class="w-8 h-8 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2m-4-8v8m-4-8H5a2 2 0 00-2 2v6a2 2 0 002 2h2"></path>
+            </svg>
+            Presenter Q&A Dashboard
+        </h1>
+        <div id="clientComments" class="h-[70vh] overflow-y-auto p-6 bg-gray-50 rounded-lg border border-gray-200 custom-scrollbar">
+            <!-- Empty state -->
+            <p class="text-gray-500 text-center text-lg">No new comments yet. Waiting for audience questions...</p>
+        </div>
+    </div>
+    <script>
+        const BASE_URL = "presentation-ik8v.onrender.com";
+        const ws = new WebSocket(`wss://${BASE_URL}/ws`);
+        const messagesDiv = document.getElementById('clientComments');
+
+        // Create a unique identifier for each client
+        const makeid = (length) => {
+            let result = '';
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            const charactersLength = characters.length;
+            let counter = 0;
+            while (counter < length) {
+                result += characters.charAt(Math.floor(Math.random() * charactersLength));
+                counter += 1;
+            }
+            return result;
+        };
+
+        const clientIdentifier = makeid(6);
+
+        const convertToReadableDate = (timestamp) => {
+            const date = new Date(timestamp);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        };
+
+        ws.onopen = () => {
+            console.log('Connected to WebSocket Server');
+            ws.send(JSON.stringify({
+                content: `${clientIdentifier} joined`,
+                client: clientIdentifier,
+                timestamp: new Date().getTime()
+            }));
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            console.log(data);
+
+            // Create comment element
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'mb-4 p-4 bg-white border border-gray-100 rounded-lg shadow-sm comment';
+            commentDiv.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-sm font-medium text-gray-700">${data.client}</p>
+                    <p class="text-xs text-gray-500">${convertToReadableDate(data.timestamp)}</p>
+                </div>
+                <p class="text-gray-800">${data.message}</p>
+            `;
+
+            // Clear empty state if it exists
+            if (messagesDiv.querySelector('.text-center')) {
+                messagesDiv.innerHTML = '';
+            }
+
+            // Append comment and scroll to bottom
+            messagesDiv.appendChild(commentDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket Error:', error);
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'mb-4 p-4 bg-red-50 border border-red-200 rounded-lg';
+            errorDiv.innerHTML = `<p class="text-red-600">Connection error. Please refresh the page.</p>`;
+            messagesDiv.appendChild(errorDiv);
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket connection closed');
+            const closeDiv = document.createElement('div');
+            closeDiv.className = 'mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg';
+            closeDiv.innerHTML = `<p class="text-yellow-600">Connection closed. Attempting to reconnect...</p>`;
+            messagesDiv.appendChild(closeDiv);
+        };
+    </script>
+</body>
+</html>
